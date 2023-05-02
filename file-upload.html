@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>FILE UPLOAD DEMO</title>
+</head>
+
+
+<body>
+    <p>ACE UPLOAD</p>
+    <form ref='uploadForm' id='uploadForm' action='http://localhost:3000/upload/ace' method='post'
+        encType="multipart/form-data">
+        <input type="file" name="fileUpload" />
+        <input type='submit' value='Upload!' />
+    </form>
+
+    <p>SSS UPLOAD</p>
+    <form ref='uploadForm' id='uploadForm' action='http://localhost:3000/upload/sss' method='post'
+        encType="multipart/form-data">
+        <input type="file" name="fileUpload" />
+        <input type='submit' value='Upload!' />
+    </form>
+
+    <p>FMMD UPLOAD</p>
+    <form ref='uploadForm' id='uploadForm' action='http://localhost:3000/upload/fmmd' method='post'
+        encType="multipart/form-data">
+        <input type="file" name="fileUpload" />
+        <input type='submit' value='Upload!' />
+    </form>
+</body>
+
+</html>
