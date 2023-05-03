@@ -1,2 +1,2 @@
-# iris-file-server
-Mock File Server for IRIS
+# iris-file-service
+Mock File Service for IRIS
