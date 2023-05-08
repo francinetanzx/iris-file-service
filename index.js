@@ -1,4 +1,5 @@
 const express = require('express');
+const {MongoClient} = require('mongodb');
 const app = express();
 const port = 3000;
 
@@ -8,14 +9,51 @@ app.use(fileUpload());
 let Client = require('ssh2-sftp-client');
 const client = new Client();
 
+const shortid = require('shortid')
+
 require('dotenv').config();
 
-app.get('/download/CSVtoJSON', function (req, res) {
-    res.sendFile(__dirname + "/file-download.html")
+// app.get('/list', function (req, res) {
+//     res.sendFile(__dirname + "/file-list.html")
+// });
+
+app.get('/list', async function (req, res) {
+    // res.sendFile(__dirname + "/file-list.html")
+    const uri = process.env.MONGODBURI
+    const mongoDBClient = new MongoClient(uri, {
+        useNewUrlParser: true,
+        useUnifiedTopology: true,
+      });
+    try {
+        // await mongoDBClient.connect();
+        console.log('Connect to database!')
+        const database = mongoDBClient.db("irisFileServiceDatabase");
+        // console.log("db: ", database)
+        const file = database.collection("file");
+        console.log("collection: ", file)
+        // const query = {};
+        // const options = {
+        //     sort: { createdDatetime: -1 },
+        //     projection: { _id: 0, title: 1, imdb: 1 },
+        // };
+        const result = await file.find({}).toArray()
+        console.log("result: ", result)
+        // console.log("result: ", result)
+        // result.forEach(d => { 
+        //     console.log("check this: ", d)
+        // })
+        // await mongoDBClient.close();
+        res.json(result)
+        
+    } catch (e) {
+        console.error(e);
+    } finally {
+        await mongoDBClient.close();
+    }
 });
 
 // acceptable organizations: sss, ace, fmmd 
-app.get('/upload/CSVtoJSON', function (req, res) {
+app.get('/upload', function (req, res) {
     res.sendFile(__dirname + "/file-upload.html")
 });
 
@@ -51,6 +89,13 @@ async function downloadFile(remoteFile) {
     }
 }
 
+async function listDatabases(client){
+    databasesList = await client.db().admin().listDatabases();
+    console.log("Databases:");
+    databasesList.databases.forEach(db => {console.log(` - ${db.name}`)});
+};
+
+
 app.post('/upload/:organization', async function (req, res) {
     const filename = req.params.organization + "/" + req.files.fileUpload.name
     console.log("filename: ", filename)
@@ -63,19 +108,64 @@ app.post('/upload/:organization', async function (req, res) {
     if (req.params.organization === "") {
         res.send("ORGANIZATION EMPTY.")
     } else {
-        const host = process.env.HOST
-        const port = process.env.PORT
-        const username = process.env.NAME
-        const password = process.env.PASSWORD
-        console.log(host)
-        console.log(port)
-        console.log(username)
-        console.log(password)
-        await connect({ host, port, username, password })
-        await uploadFile(req.files.fileUpload.data, filename)
-        res.send(`<p>http://172.20.10.11:3000/download/${filename}</p>`)
+        let fileUpload;
+        let uploadPath;
+
+        if (!req.files || Object.keys(req.files).length === 0) {
+            return res.status(400).send('NO FILES UPLOADED.');
+        }
+
+        fileUpload = req.files.fileUpload;
+        uploadPath = __dirname + "/" + filename;
+        console.log(uploadPath)
+
+        fileUpload.mv(uploadPath, function (err) {
+            if (err)
+                return res.status(500).send(err);
+        });
+
+        const uri = process.env.MONGODBURI
+        const mongoDBClient = new MongoClient(uri, {
+            useNewUrlParser: true,
+            useUnifiedTopology: true,
+          });
+        try {
+            const database = mongoDBClient.db("irisFileServiceDatabase");
+            const file = database.collection("file");
+            const currentTimeMS = new Date()
+            const currentDatetime = currentTimeMS.toISOString()
+            var expiryDatetime = new Date(currentTimeMS + (5 * 60 * 1000));
+            console.log("current: " , currentDatetime)
+            console.log("expiry: ", expiryDatetime)
+            const urlCode = shortid.generate()
+            const shortUrl = __dirname + '/' + urlCode
+            const doc = { 
+                localFileDirectory: filename, 
+                createdDatetime: currentDatetime, 
+                modifiedDatetime: currentDatetime,
+                links: {
+                    urlCode: {
+                        createdDatetime: currentDatetime, 
+                        downloadableLink: urlCode,
+                        expiryDatetime: expiryDatetime, 
+                    }
+                }
+            }
+            const result = await file.insertOne(doc);
+            console.log(`A document was inserted with the _id: ${result.insertedId}`);
+
+        
+            // await mongoDBClient.connect();
+            // await listDatabases(mongoDBClient);
+        } catch (e) {
+            console.error(e);
+        } finally {
+            await mongoDBClient.close();
+            res.send('FILE UPLOADED!');
+        }
     }
 });
+
 
 app.post('/download', async function (req, res) {
     const requestedFilePath = req.body["fileDownload"]
@@ -102,6 +192,6 @@ app.post('/download', async function (req, res) {
     }
 });
 
-app.listen(port, "172.20.10.11", () => {
+app.listen(port, () => {
     console.log(`Example app listening on port ${port}`)
 })

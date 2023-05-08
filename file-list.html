@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <title>FILE LIST DEMO</title>
+</head>
+
+
+<body onload="myFunction()">
+    <p>FILE LIST</p>
+    <table id="myTable">
+      <thead>
+          <tr>
+              <th>ID</th>
+              <th>Local File Directory</th>
+              <th>Created Datetime</th>
+              <th>Modified Datetime</th>
+          </tr>
+      </thead>
+      <tbody>
+      </tbody>
+  </table>
+
+    <script>
+      function get() {
+        return new Promise((resolve, reject) => {
+          var req = new XMLHttpRequest();
+          req.open('GET', '/list');
+          req.onload = () => resolve(req.response);
+        });
+      }           
+      
+      function myFunction() {
+        var tableRef = document.getElementById('myTable').getElementsByTagName('tbody')[0];
+        var newRow = tableRef.insertRow(tableRef.rows.length);
+        newRow.innerHTML = "<tr><td>aaaa</td></tr>";
+        get().then((data) => {
+          console.log(data)
+        var parsed = JSON.parse(data);
+        console.log("check this: ", parsed)
+      });
+      }
+    </script>
+</body>
+
+</html>
